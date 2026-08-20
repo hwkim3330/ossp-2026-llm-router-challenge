@@ -33,10 +33,11 @@ gh auth token | docker login ghcr.io -u hwkim3330 --password-stdin
 
 echo "== building and pushing linux/arm64 from $CODE_SHA"
 docker buildx build --platform linux/arm64 --push \
+  --provenance=false --sbom=false \
   --file router/Dockerfile --tag "$IMAGE:submission" router/
 
 DIGEST="$(docker buildx imagetools inspect "$IMAGE:submission" \
-          --format '{{.Manifest.Digest}}')"
+          | awk '/^Digest:/ {print $2; exit}')"
 echo "== image digest: $DIGEST"
 
 python3 - "$CODE_SHA" "$IMAGE@$DIGEST" <<'PY'
