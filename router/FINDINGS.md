@@ -290,3 +290,60 @@ On 2,640 episodes, native x86-64, 2 cores:
 Two risks, one change. Nothing here was selected for score: the quantile sweep
 is reported so the shape is visible, and the design was chosen on whether its
 margin exceeded the measured sampling spread.
+
+## Two attempts at the remaining headroom, both refuted
+
+With the budget risk fixed, the open question was gain prediction and the 1.24x
+of premium that goes unspent. Both were attacked and neither moved.
+
+### "Predict where light fails" is not a better target
+
+The structure invited it. Gain is exactly zero for 75% of episodes with `ax31`
+and 61% with `axk1-think`, and what remains sits on the rows light gets wrong
+(E[gain | light fails] +0.271 and +0.617, against -0.022 and -0.005 elsewhere).
+So a regression on the raw difference spends its capacity on rows with no signal,
+while "will light fail, and would this model fix it" is a clean 35%-positive
+binary problem.
+
+Four gain estimators, routed identically, selected on 4-fold CV *inside train*
+(Spearman of the efficiency ranking the greedy consumes) and reported on dev:
+
+| gain model | CV ax31 | CV axk1 | dev weighted | risk-adj |
+| --- | ---: | ---: | ---: | ---: |
+| Ridge on the difference | **+0.051** | **+0.237** | 0.6721 | **0.6721** |
+| P(fail) x constant | +0.038 | +0.107 | 0.6706 | 0.6539 |
+| P(fail) x conditional Ridge | +0.039 | +0.182 | 0.6735 | 0.6735 |
+| calibrated P(ok) difference | +0.044 | +0.217 | 0.6753 | 0.6430 |
+
+The rule was set before looking: adopt only what wins both. Nothing does. The
+conditional Ridge is +0.0014 on dev -- far below what 880 episodes resolve -- and
+loses on CV, and the calibrated difference buys its dev score with a 12% chance
+of forfeiting fast. Ridge on the difference already learns where light fails,
+because that is where the difference lives; splitting it into two estimates and
+multiplying them only multiplies the noise.
+
+### The unspent premium budget is the price of correlated error, not a bug
+
+The safety pass re-prices each purchase at its own 0.9 quantile, and on premium
+that sum reaches 3.85x of a 4.00x cap while the basket actually costs 2.76x. That
+looks like the wrong object: the cap constrains one total, and the upper quantile
+of a sum should grow like sqrt(N), not N. Replacing it with
+`sum(q50) + z*sqrt(sum(sigma^2))`, sigma from the q90-q50 spread:
+
+| bound | dev weighted | risk-adj | fast spend / P(over) | prem spend / P(over) |
+| --- | ---: | ---: | --- | --- |
+| sum of quantiles (current) | 0.6721 | **0.6721** | 1.11/1.25, **0%** | 2.76/4.00, 0% |
+| quantile of sum, z=4 | 0.6777 | 0.5198 | 1.25/1.25, 50% | 3.24/4.00, 4% |
+| quantile of sum, z=6 | 0.6748 | 0.5735 | 1.23/1.25, 38% | 2.87/4.00, 0% |
+| quantile of sum, z=8 | 0.6725 | 0.6092 | 1.22/1.25, 24% | 2.73/4.00, 0% |
+
+It spends the budget and forfeits the tiers. Even at z=8 -- eight standard
+deviations, which should be unreachable -- fast overruns in a quarter of
+resamples. The sqrt is bought with an independence assumption that is false here:
+a cost model that is off is off in the same direction on every episode at once,
+and no amount of averaging removes a shared bias.
+
+So the 1.24x is not recoverable by re-pricing. Premium under-spends because the
+cost model's error is correlated, and the conservative sum is what pays for that.
+Recovering it needs a cost model whose *errors* are smaller, not a cleverer bound
+on the same errors.
