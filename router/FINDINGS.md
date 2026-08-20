@@ -339,11 +339,33 @@ of a sum should grow like sqrt(N), not N. Replacing it with
 
 It spends the budget and forfeits the tiers. Even at z=8 -- eight standard
 deviations, which should be unreachable -- fast overruns in a quarter of
-resamples. The sqrt is bought with an independence assumption that is false here:
-a cost model that is off is off in the same direction on every episode at once,
-and no amount of averaging removes a shared bias.
+resamples.
 
-So the 1.24x is not recoverable by re-pricing. Premium under-spends because the
-cost model's error is correlated, and the conservative sum is what pays for that.
-Recovering it needs a cost model whose *errors* are smaller, not a cleverer bound
-on the same errors.
+**Correction.** I first recorded that as evidence of correlated errors. That was
+wrong, and resampling says so plainly: the sd of a sum of N residuals tracks
+sqrt(N) to within 2% at N = 50, 200 and 600, so they are independent and the
+sqrt is legitimate.
+
+What was wrong is sigma. It came from `(q90 - q50)/1.2816`, the *normal* relation
+between an interquantile gap and a standard deviation, and these residuals are
+nowhere near normal -- skew 15.2 and kurtosis 463 for `ax31`, 8.3 and 94 for
+`axk1-think`. A gap between two quantiles of a heavy-tailed distribution says
+little about its spread, and here it understated the true sd by 3.07x and 2.01x,
+so the bound was roughly a third of what it should have been.
+
+Rescaling sigma by a factor measured out-of-fold on train (`ax31` x4.36,
+`axk1-think` x1.99) makes the bound behave:
+
+| bound | dev weighted | risk-adj | fast P(over) | balanced P(over) | premium spend |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| sum of quantiles (current) | 0.6721 | **0.6721** | 0% | 0% | 2.76/4.00 |
+| measured sigma, z=2.5 | 0.6732 | 0.6557 | 4% | 4% | 2.77/4.00 |
+| measured sigma, z=3 | 0.6724 | 0.6704 | 0% | 1% | 2.75/4.00 |
+| measured sigma, z=4 | 0.6718 | 0.6718 | 0% | 0% | 2.73/4.00 |
+
+The corrected bound is sound and buys nothing: at a z that is actually safe it
+lands exactly where the sum of quantiles already was. That is the useful result.
+Premium's unspent 1.24x is not an artifact of pricing the basket wrongly -- with a
+per-purchase residual sd of 208,045 credits on `axk1-think` and a kurtosis near
+100, committing more of the budget genuinely cannot be done safely. The only way
+to spend it is a cost model with smaller residuals.
