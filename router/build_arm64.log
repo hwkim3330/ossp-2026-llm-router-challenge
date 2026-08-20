@@ -1,0 +1,133 @@
+#0 building with "arm64b" instance using docker-container driver
+
+#1 [internal] load build definition from Dockerfile
+#1 transferring dockerfile: 2.08kB done
+#1 DONE 0.1s
+
+#2 [internal] load metadata for docker.io/library/python:3.11-slim-bookworm
+#2 DONE 2.0s
+
+#3 [internal] load .dockerignore
+#3 transferring context: 2B done
+#3 DONE 0.1s
+
+#4 [internal] load build context
+#4 DONE 0.0s
+
+#5 [1/6] FROM docker.io/library/python:3.11-slim-bookworm@sha256:d29f48a31a8b408ed19272ca1e7b10ebae13b240a27e862d3d4217c528e2e0c3
+#5 resolve docker.io/library/python:3.11-slim-bookworm@sha256:d29f48a31a8b408ed19272ca1e7b10ebae13b240a27e862d3d4217c528e2e0c3 0.0s done
+#5 ...
+
+#4 [internal] load build context
+#4 transferring context: 9.34MB 0.0s done
+#4 DONE 0.2s
+
+#5 [1/6] FROM docker.io/library/python:3.11-slim-bookworm@sha256:d29f48a31a8b408ed19272ca1e7b10ebae13b240a27e862d3d4217c528e2e0c3
+#5 sha256:9a85f165cffffa9ce6c9465f365b1f060584a5bf9463481e0a48a6c0b6375c6a 0B / 248B 0.2s
+#5 sha256:9a85f165cffffa9ce6c9465f365b1f060584a5bf9463481e0a48a6c0b6375c6a 248B / 248B 0.2s done
+#5 sha256:bfeb440e017cab20c7863f0412cb8f688193fc07e43b323cc9fa0b8921f21cdc 0B / 15.96MB 0.3s
+#5 sha256:24f7ec7f49b5af285d009666a55b99d4927f20f8ae7aabcca7fca52dba25cda0 0B / 3.35MB 0.2s
+#5 sha256:0f5d7465a5bb9d419f60c93d126a161286c73a1ede4a8b2e46bd5e7ad5782cc7 0B / 28.12MB 0.2s
+#5 sha256:bfeb440e017cab20c7863f0412cb8f688193fc07e43b323cc9fa0b8921f21cdc 2.10MB / 15.96MB 0.5s
+#5 sha256:bfeb440e017cab20c7863f0412cb8f688193fc07e43b323cc9fa0b8921f21cdc 10.49MB / 15.96MB 0.6s
+#5 sha256:bfeb440e017cab20c7863f0412cb8f688193fc07e43b323cc9fa0b8921f21cdc 15.96MB / 15.96MB 0.7s done
+#5 sha256:24f7ec7f49b5af285d009666a55b99d4927f20f8ae7aabcca7fca52dba25cda0 3.35MB / 3.35MB 0.8s done
+#5 sha256:0f5d7465a5bb9d419f60c93d126a161286c73a1ede4a8b2e46bd5e7ad5782cc7 4.19MB / 28.12MB 0.8s
+#5 sha256:0f5d7465a5bb9d419f60c93d126a161286c73a1ede4a8b2e46bd5e7ad5782cc7 13.63MB / 28.12MB 0.9s
+#5 sha256:0f5d7465a5bb9d419f60c93d126a161286c73a1ede4a8b2e46bd5e7ad5782cc7 22.02MB / 28.12MB 1.1s
+#5 sha256:0f5d7465a5bb9d419f60c93d126a161286c73a1ede4a8b2e46bd5e7ad5782cc7 28.12MB / 28.12MB 1.2s done
+#5 extracting sha256:0f5d7465a5bb9d419f60c93d126a161286c73a1ede4a8b2e46bd5e7ad5782cc7
+#5 extracting sha256:0f5d7465a5bb9d419f60c93d126a161286c73a1ede4a8b2e46bd5e7ad5782cc7 0.5s done
+#5 DONE 2.0s
+
+#5 [1/6] FROM docker.io/library/python:3.11-slim-bookworm@sha256:d29f48a31a8b408ed19272ca1e7b10ebae13b240a27e862d3d4217c528e2e0c3
+#5 extracting sha256:24f7ec7f49b5af285d009666a55b99d4927f20f8ae7aabcca7fca52dba25cda0 0.1s done
+#5 extracting sha256:bfeb440e017cab20c7863f0412cb8f688193fc07e43b323cc9fa0b8921f21cdc
+#5 extracting sha256:bfeb440e017cab20c7863f0412cb8f688193fc07e43b323cc9fa0b8921f21cdc 0.3s done
+#5 DONE 2.5s
+
+#5 [1/6] FROM docker.io/library/python:3.11-slim-bookworm@sha256:d29f48a31a8b408ed19272ca1e7b10ebae13b240a27e862d3d4217c528e2e0c3
+#5 extracting sha256:9a85f165cffffa9ce6c9465f365b1f060584a5bf9463481e0a48a6c0b6375c6a 0.0s done
+#5 DONE 2.5s
+
+#6 [2/6] RUN pip install --no-cache-dir --root-user-action=ignore         "numpy==2.1.3" "scipy==1.14.1" "scikit-learn==1.5.2"     && pip uninstall --yes pip setuptools wheel
+#6 16.94 Collecting numpy==2.1.3
+#6 17.41   Downloading numpy-2.1.3-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl.metadata (63 kB)
+#6 17.53      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 63.4/63.4 kB 762.3 kB/s eta 0:00:00
+#6 19.62 Collecting scipy==1.14.1
+#6 19.64   Downloading scipy-1.14.1-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl.metadata (60 kB)
+#6 19.66      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 60.8/60.8 kB 27.8 MB/s eta 0:00:00
+#6 21.12 Collecting scikit-learn==1.5.2
+#6 21.13   Downloading scikit_learn-1.5.2-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl.metadata (13 kB)
+#6 22.37 Collecting joblib>=1.2.0 (from scikit-learn==1.5.2)
+#6 22.39   Downloading joblib-1.5.3-py3-none-any.whl.metadata (5.5 kB)
+#6 22.50 Collecting threadpoolctl>=3.1.0 (from scikit-learn==1.5.2)
+#6 22.52   Downloading threadpoolctl-3.6.0-py3-none-any.whl.metadata (13 kB)
+#6 22.59 Downloading numpy-2.1.3-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl (13.9 MB)
+#6 23.06    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 13.9/13.9 MB 30.5 MB/s eta 0:00:00
+#6 23.08 Downloading scipy-1.14.1-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl (35.6 MB)
+#6 24.30    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 35.6/35.6 MB 29.6 MB/s eta 0:00:00
+#6 24.31 Downloading scikit_learn-1.5.2-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl (12.5 MB)
+#6 24.75    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 12.5/12.5 MB 30.1 MB/s eta 0:00:00
+#6 24.76 Downloading joblib-1.5.3-py3-none-any.whl (309 kB)
+#6 24.79    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 309.1/309.1 kB 33.5 MB/s eta 0:00:00
+#6 24.80 Downloading threadpoolctl-3.6.0-py3-none-any.whl (18 kB)
+#6 27.14 Installing collected packages: threadpoolctl, numpy, joblib, scipy, scikit-learn
+#6 85.88 Successfully installed joblib-1.5.3 numpy-2.1.3 scikit-learn-1.5.2 scipy-1.14.1 threadpoolctl-3.6.0
+#6 87.12 
+#6 87.12 [notice] A new release of pip is available: 24.0 -> 26.2.1
+#6 87.12 [notice] To update, run: pip install --upgrade pip
+#6 99.80 Found existing installation: pip 24.0
+#6 100.2 Uninstalling pip-24.0:
+#6 101.2   Successfully uninstalled pip-24.0
+#6 101.2 Found existing installation: setuptools 79.0.1
+#6 101.6 Uninstalling setuptools-79.0.1:
+#6 102.3   Successfully uninstalled setuptools-79.0.1
+#6 102.4 Found existing installation: wheel 0.46.3
+#6 102.4 Uninstalling wheel-0.46.3:
+#6 102.4   Successfully uninstalled wheel-0.46.3
+#6 102.4 WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv
+#6 DONE 102.7s
+
+#7 [3/6] COPY --chown=65532:65532 router_features.py router_run.py /opt/router/
+#7 DONE 0.1s
+
+#8 [4/6] COPY --chown=65532:65532 artifact/router.pkl /opt/router/artifact/router.pkl
+#8 DONE 0.1s
+
+#9 [5/6] RUN python3 -c "import pickle, pathlib; a = pickle.loads(pathlib.Path('/opt/router/artifact/router.pkl').read_bytes()); print('artifact loads:', sorted(a)[:6]); assert a['light'] and a['upgrades'], 'artifact missing models'"
+#9 8.574 /usr/local/lib/python3.11/site-packages/sklearn/base.py:376: InconsistentVersionWarning: Trying to unpickle estimator TfidfTransformer from version 1.8.0 when using version 1.5.2. This might lead to breaking code or invalid results. Use at your own risk. For more info please refer to:
+#9 8.574 https://scikit-learn.org/stable/model_persistence.html#security-maintainability-limitations
+#9 8.574   warnings.warn(
+#9 8.695 /usr/local/lib/python3.11/site-packages/sklearn/base.py:376: InconsistentVersionWarning: Trying to unpickle estimator TfidfVectorizer from version 1.8.0 when using version 1.5.2. This might lead to breaking code or invalid results. Use at your own risk. For more info please refer to:
+#9 8.695 https://scikit-learn.org/stable/model_persistence.html#security-maintainability-limitations
+#9 8.695   warnings.warn(
+#9 9.406 /usr/local/lib/python3.11/site-packages/sklearn/base.py:376: InconsistentVersionWarning: Trying to unpickle estimator Ridge from version 1.8.0 when using version 1.5.2. This might lead to breaking code or invalid results. Use at your own risk. For more info please refer to:
+#9 9.406 https://scikit-learn.org/stable/model_persistence.html#security-maintainability-limitations
+#9 9.406   warnings.warn(
+#9 9.791 /usr/local/lib/python3.11/site-packages/sklearn/base.py:376: InconsistentVersionWarning: Trying to unpickle estimator _BinMapper from version 1.8.0 when using version 1.5.2. This might lead to breaking code or invalid results. Use at your own risk. For more info please refer to:
+#9 9.791 https://scikit-learn.org/stable/model_persistence.html#security-maintainability-limitations
+#9 9.791   warnings.warn(
+#9 9.820 /usr/local/lib/python3.11/site-packages/sklearn/base.py:376: InconsistentVersionWarning: Trying to unpickle estimator HistGradientBoostingRegressor from version 1.8.0 when using version 1.5.2. This might lead to breaking code or invalid results. Use at your own risk. For more info please refer to:
+#9 9.820 https://scikit-learn.org/stable/model_persistence.html#security-maintainability-limitations
+#9 9.820   warnings.warn(
+#9 10.04 artifact loads: ['cost', 'gain', 'light', 'light_cost', 'policy', 'q_fill']
+#9 DONE 10.4s
+
+#10 [6/6] WORKDIR /opt/router
+#10 DONE 0.1s
+
+#11 exporting to oci image format
+#11 exporting layers
+#11 exporting layers 6.2s done
+#11 exporting manifest sha256:3f314f6dba92513b5f9c4247ac298230dbcc7fe55a08d0d7efe955ebc01b76c2 0.0s done
+#11 exporting config sha256:9d5ed03c9c3c026deaf7fc2ef189a8a685b5715eea1d7648908786bb6b3748a1 0.0s done
+#11 sending tarball
+#11 ...
+
+#12 importing to docker
+#12 DONE 0.0s
+
+#11 exporting to oci image format
+#11 sending tarball 1.2s done
+#11 DONE 7.5s

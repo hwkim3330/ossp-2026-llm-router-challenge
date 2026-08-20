@@ -1,0 +1,206 @@
+# SKT LLM Router — what the task actually is, and where we stand
+
+## The ceiling is 0.78, not 1.0
+
+Every tier caps spend at a multiple of the all-light bill, and `axk1-think` costs
+**23x** `ax31-light`. So even with perfect foresight only a fraction of episodes
+can be upgraded. Measured on train with a perfect-information greedy fill:
+
+| tier | budget | oracle ceiling | episodes upgraded (of 1760) |
+| --- | ---: | ---: | ---: |
+| fast | 1.25x | 0.7339 | 330 |
+| balanced | 2.0x | 0.7886 | 447 |
+| premium | 4.0x | 0.8452 | 575 |
+
+Weighted oracle **0.7837** against an all-light **0.5973**. The whole contest is
+the 0.19 in between.
+
+## The failure that matters is the budget, not the accuracy
+
+Scoring a tier over budget gives **zero**, and the bill uses the chosen model's
+actual tokens, which are unknown when routing. A first router that ranked by
+predicted efficiency and spent against predicted cost blew every tier:
+
+```
+fast 1.37x (cap 1.25)   balanced 2.69x (cap 2.0)   premium 4.89x (cap 4.0)  -> 0.0000
+```
+
+Two compounding biases. Log-space regression predicts the mean of the log, which
+under-predicts the mean. And greedy **selects on low predicted cost**, so it
+concentrates precisely on the episodes whose cost was under-predicted -- a
+winner's curse on top of the first bias.
+
+Predicting the **0.80 quantile of cost** in raw credits instead of the mean fixes
+it. With a 0.85 budget margin every tier lands inside its cap:
+
+| tier | score | spend | cap |
+| --- | ---: | ---: | ---: |
+| fast | 0.6381 | 1.04x | 1.25x |
+| balanced | 0.6821 | 1.94x | 2.0x |
+| premium | 0.7182 | 3.47x | 4.0x |
+
+Weighted **0.6753** on dev, against all-light 0.6193 and a dev oracle of 0.7974
+— **31.4% of the headroom**.
+
+## What is hard: predicting the gain, not the cost
+
+Cost predicts well (dev correlation 0.75 in log space). Gain does not:
+
+| | gain correlation | efficiency-ranking Spearman |
+| --- | ---: | ---: |
+| ax31 | +0.098 | +0.018 |
+| axk1-think | +0.276 | +0.168 |
+
+For `ax31` the efficiency ranking greedy consumes is essentially random. Note the
+structure that makes this tractable in principle: of the 611 train episodes where
+light scores 0, `axk1-think` fixes **68.6%**; of the 954 where light scores 1, it
+keeps the score **91.5%** of the time. So the task reduces to predicting *where
+light fails*.
+
+Modelling notes measured on dev, not assumed:
+* char_wb 3-5 grams plus word 1-2 grams beat word features alone.
+* Plain Ridge beat HistGradientBoosting on 1760 rows (0.437 vs 0.412 for light's
+  own score) -- the boosting overfits at this size.
+* Predicting each model's score and differencing is *worse* than regressing the
+  difference directly: the shared signal cancels and only the part we need is left.
+
+## Next
+
+* The fast tier carries weight 0.4 and sits at 1.04x of a 1.25x cap, barely above
+  all-light. That is where the weighted score is lost.
+* Premium leaves 3.47x of 4.0x unspent -- the quantile is over-conservative once
+  the budget is loose, so the margin should be tier-dependent, tuned on train.
+* Better gain prediction is the fundamental lever, and "predict where light
+  fails" is a better-conditioned target than the pairwise difference.
+
+## Tuning the margin made it worse than doing nothing
+
+Choosing the cost quantile and budget margin by 4-fold CV on train, for maximum
+mean score, gave this on dev:
+
+```
+fast 0.6545@1.24x   balanced 0.0000@2.28x (cap 2.0)   premium 0.7202@3.66x
+weighted 0.4779  -- worse than routing everything to light (0.6193)
+```
+
+Expected-score maximisation is only right when the payoff is symmetric. Here an
+overrun forfeits the tier, so tuning the margin buys a probability of zero in
+exchange for a few points. The margin is not a hyperparameter.
+
+What works is structural: fill the basket using a **mid** cost quantile, then
+re-price the whole basket at a **pessimistic** quantile (0.95) and drop the least
+efficient purchases until even that bill fits. The first quantile decides what
+looks worth buying, the second decides how wrong we can afford to be. Every tier
+then lands inside its cap:
+
+```
+fast 0.6463@1.11x   balanced 0.6804@1.94x   premium 0.7071@3.05x   weighted 0.6748
+```
+
+## Do not drop ax31 for being unpredictable
+
+Its gain correlation is +0.085 and its efficiency ranking is Spearman +0.054 --
+close to random -- so removing it looks obvious. Measured:
+
+| upgrades offered | weighted | note |
+| --- | ---: | --- |
+| ax31 + axk1-think | **0.6748** | |
+| axk1-think only | 0.2511 | balanced and premium both overrun -> zero |
+| ax31 only | 0.6668 | safe, but premium spends 1.78x of a 4.0x cap |
+
+ax31 is not there for its accuracy, it is there because it is cheap (2.16x) and
+lets the budget be filled safely. Routing only to the 23x model blows the cap.
+
+## Embeddings help the model that matters
+
+multilingual-e5-small (118M, 20.6% of prompts contain Hangul so an English-only
+encoder is wrong):
+
+| | tfidf | e5 | tfidf+e5 |
+| --- | ---: | ---: | ---: |
+| ax31 gain corr | +0.085 | +0.080 | +0.099 |
+| axk1-think gain corr | +0.320 | **+0.366** | +0.329 |
+| axk1-think efficiency Spearman | +0.142 | **+0.170** | +0.163 |
+
+Caveat for the container: encoding 2,640 prompts took 138 s here, against a 105 s
+budget on 2 cores. Max length must come down from 512, or the encoder has to be
+smaller, before this ships.
+
+## Where the score still is
+
+Every configuration leaves premium at ~3.05x of a 4.0x cap. The safety pass is
+over-conservative once the budget is loose, so the pessimistic quantile should
+depend on the tier's slack rather than being fixed at 0.95.
+
+
+## Embeddings improve the prediction and lose the competition
+
+multilingual-e5-small lifts axk1-think gain correlation from +0.320 (TF-IDF) to
++0.361, and truncating to 96 tokens -- needed to fit 2,640 prompts into the
+container's 105 s on 2 cores, since 512 tokens took 138 s -- keeps +0.345. On the
+prediction metric it is clearly better.
+
+On the actual objective it is worse:
+
+| router | weighted dev |
+| --- | ---: |
+| TF-IDF only | **0.6748** |
+| e5 for axk1-think, slack 0.03 | 0.6731 |
+| e5, slack 0.05 | 0.6724 |
+| e5, slack 0.08 | 0.6705 |
+
+The first e5 attempt with no explicit slack landed balanced at **2.01x of a 2.0x
+cap** and forfeited the tier -- weighted 0.4703. Being over by half a percent
+costs everything, so the embedding router has to hold more headroom, and premium
+drops from 3.05x to 2.87x of its cap. The headroom it gives up is worth more than
+the prediction it gains.
+
+Rejected, and the container keeps no encoder, no 66 s of runtime and no 2 GB
+memory risk.
+
+## Final configuration
+
+Word 1-2 grams plus char_wb 3-5 grams, Ridge for both the gain and the log-cost
+base, HistGradientBoosting quantile regression for cost. Fill on the 0.5 cost
+quantile, re-price at 0.95, shed the weakest purchases until that fits, and hold
+3% slack under the cap.
+
+Dev weighted **0.6748**, all-light 0.6193, dev oracle 0.7974 -- 31% of the
+headroom with every tier inside budget.
+
+
+## The container path, measured honestly
+
+`router_run.py` implements the evaluator's interface (`--input --tier --output`,
+one tier per invocation) and loads a pickled artifact, since the container sees
+prompts only and cannot train.
+
+One thing the interface forces that the offline experiments hid: **the cap is a
+multiple of the all-light bill, and the container is never told what that bill
+is.** It has to be predicted too. The asymmetry is one-sided -- over-estimating
+inflates the cap and risks an overrun that forfeits the tier, under-estimating
+only leaves score unspent -- so light's own cost is fitted at a quantile chosen in
+the safe direction.
+
+Calibrating that quantile, fitted on train and evaluated on dev:
+
+| q_light | estimated / true light bill | weighted | fast | balanced | premium |
+| ---: | ---: | ---: | ---: | ---: | ---: |
+| 0.25 | 0.76x | 0.6687 | 1.05x | 1.55x | 2.67x |
+| 0.50 | 0.84x | 0.6693 | 1.06x | 1.78x | 2.69x |
+| 0.75 | 0.93x | **0.6719** | 1.07x | 1.85x | 2.79x |
+
+Getting the light bill from 76% to 93% accurate moves the score by 0.003. Premium
+still spends 2.79x of a 4.0x cap. **The budget is not the binding constraint any
+more -- there is nothing worth buying with the rest.** With ax31's efficiency
+ranking at Spearman +0.05, the router cannot tell which remaining episodes are
+worth an upgrade, so unspent budget stays unspent.
+
+That is the ceiling of this approach: honest dev weighted ~0.67, about 30% of the
+oracle headroom. Everything still on the table is gain prediction, and the four
+things tried today -- embeddings, cost quantiles, budget margins, model mix -- all
+stopped at that same wall.
+
+Note on a number not to trust: fitting the artifact on train+dev and scoring it on
+dev gives 0.7422. That is training on the evaluation set and is reported here only
+so it is not mistaken for progress.
