@@ -1,0 +1,48 @@
+#0 building with "arm64b" instance using docker-container driver
+
+#1 [internal] load build definition from Dockerfile
+#1 transferring dockerfile: 2.35kB done
+#1 DONE 0.0s
+
+#2 [internal] load metadata for docker.io/library/python:3.12-slim-bookworm
+#2 DONE 1.2s
+
+#3 [internal] load .dockerignore
+#3 transferring context: 2B done
+#3 DONE 0.0s
+
+#4 [1/6] FROM docker.io/library/python:3.12-slim-bookworm@sha256:a116514e19457bcb7af7efe9c3dd0b9b71e85b317694e7882a1c52aa15a78134
+#4 resolve docker.io/library/python:3.12-slim-bookworm@sha256:a116514e19457bcb7af7efe9c3dd0b9b71e85b317694e7882a1c52aa15a78134 0.0s done
+#4 DONE 0.0s
+
+#5 [internal] load build context
+#5 transferring context: 8.78MB 0.0s done
+#5 DONE 0.1s
+
+#6 [2/6] RUN pip install --no-cache-dir --root-user-action=ignore         "numpy==2.5.1" "scipy==1.17.0" "scikit-learn==1.8.0"     && pip uninstall --yes pip setuptools wheel
+#6 CACHED
+
+#7 [3/6] COPY --chown=65532:65532 router_features.py router_run.py /opt/router/
+#7 DONE 0.1s
+
+#8 [4/6] COPY --chown=65532:65532 artifact/router.pkl /opt/router/artifact/router.pkl
+#8 DONE 0.1s
+
+#9 [5/6] RUN python3 -W error::UserWarning -c "import pickle, pathlib; a = pickle.loads(pathlib.Path('/opt/router/artifact/router.pkl').read_bytes()); print('artifact loads:', sorted(a)[:6]); assert a['light'] and a['upgrades'], 'artifact missing models'"
+#9 16.64 artifact loads: ['cost', 'gain', 'gain_cap', 'light', 'light_cost', 'ng_clf']
+#9 DONE 17.1s
+
+#10 [6/6] WORKDIR /opt/router
+#10 DONE 0.1s
+
+#11 exporting to oci image format
+#11 exporting layers
+#11 exporting layers 0.5s done
+#11 exporting manifest sha256:e543064501282edd5352cab0b44d9657c901119995215f59b305213a9c78142e 0.0s done
+#11 exporting config sha256:e0087bcf67b08fe602610d7bcd899d85812ea6fe4f5c9f702e548adeea251c25 0.0s done
+#11 sending tarball
+#11 sending tarball 1.1s done
+#11 DONE 1.7s
+
+#12 importing to docker
+#12 DONE 0.0s

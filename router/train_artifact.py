@@ -24,8 +24,8 @@ from pathlib import Path
 import numpy as np
 from sklearn.ensemble import HistGradientBoostingRegressor
 from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.linear_model import Ridge
-from scipy.sparse import hstack
+from sklearn.linear_model import LogisticRegression, Ridge
+from scipy.sparse import csr_matrix, hstack
 
 from router_features import episode_text, hand_features
 
@@ -39,6 +39,7 @@ GAIN_CAP = 500
 
 
 def load(challenge_root: Path, split: str, policy: dict):
+    light_id = policy["light_model_id"]
     rates = {m: (Decimal(v["input_token_rate"]), Decimal(v["output_token_rate"]))
              for m, v in policy["models"].items()}
     d = challenge_root / "data" / split
@@ -59,7 +60,8 @@ def load(challenge_root: Path, split: str, policy: dict):
             cost[m] = float(ir * u["input_tokens"] + orr * u["output_tokens"])
         rows.append({"text": episode_text(ep),
                      "score": {m: float(oc["models"][m]["score"]) for m in rates},
-                     "cost": cost})
+                     "cost": cost,
+                     "generations": int(oc["models"][light_id]["num_generations"])})
     return rows
 
 
@@ -91,10 +93,21 @@ def main() -> int:
     # alone gives sd 0.106 and no overrun in any resample, at the same score.
     F = np.c_[[hand_features(t) for t in texts], np.log1p([len(t) for t in texts])]
 
+    # Episodes are graded over 2 or 4 generations, and which one it is says a lot
+    # about the episode: light fails on 38.0% of the 2-generation episodes and
+    # only 18.3% of the 4-generation ones. The count is not an input at run time,
+    # but it is almost perfectly recoverable from the prompt (dev AUC 0.9990), so
+    # the predicted probability goes in as a gain feature. Paired over 12 CV folds
+    # it lifts the efficiency ranking on both models (t = +3.4 and +2.5).
+    y_ng = np.array([r["generations"] == 4 for r in rows]).astype(int)
+    ng_clf = LogisticRegression(C=4.0, max_iter=3000).fit(X, y_ng)
+    Xg = hstack([X, csr_matrix(ng_clf.predict_proba(X)[:, 1][:, None])]).tocsr()
+    print(f"  generations classifier fitted ({y_ng.mean():.1%} are 4-generation)")
+
     gain, cost_models = {}, {q: {} for q in (Q_FILL, Q_SAFE)}
     for m in upgrades:
         y = np.array([r["score"][m] - r["score"][light] for r in rows])
-        gain[m] = Ridge(alpha=1.0).fit(X, y)
+        gain[m] = Ridge(alpha=1.0).fit(Xg, y)
         yc = np.clip([r["cost"][m] - r["cost"][light] for r in rows], 1.0, None)
         for q in (Q_FILL, Q_SAFE):
             cost_models[q][m] = HistGradientBoostingRegressor(
@@ -121,7 +134,7 @@ def main() -> int:
                      "cost": cost_models, "light": light, "upgrades": upgrades,
                      "light_cost": light_models, "q_light": 0.75,
                      "policy": policy, "q_fill": Q_FILL, "q_safe": Q_SAFE,
-                     "gain_cap": GAIN_CAP}, fh,
+                     "gain_cap": GAIN_CAP, "ng_clf": ng_clf}, fh,
                     protocol=4)
     print(f"wrote {args.out} ({args.out.stat().st_size / 2**20:.1f} MiB)")
     return 0

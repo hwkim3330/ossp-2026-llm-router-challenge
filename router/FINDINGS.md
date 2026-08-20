@@ -419,3 +419,54 @@ rows, a quantile model conditioned on a strong point estimate reports the spread
 it can no longer see. Keeping the cost model deliberately weak is what makes its
 uncertainty trustworthy, and trustworthy uncertainty is what the budget rule
 actually consumes.
+
+## The one thing that survived: how many generations the episode is graded over
+
+Reading the public forks of the challenge repo turned up an idea worth testing --
+a "generation-weighted score head". The evaluation grades each episode over 2 or
+4 generations, 14.0% of them over 4, and that split is not incidental to the
+episode:
+
+| | light failure rate | E[gain] ax31 | E[gain] axk1-think |
+| --- | ---: | ---: | ---: |
+| 2 generations (n=1,514) | 38.0% | +0.0865 | +0.2266 |
+| 4 generations (n=246) | **18.3%** | +0.0488 | +0.1392 |
+
+The count is not an input at run time, but it is almost perfectly recoverable
+from the prompt: a logistic model on the same n-grams separates the two at dev
+AUC 0.9990. So the predicted probability is a legitimate prompt-derived feature,
+and it goes into the gain models.
+
+It is the only candidate all day to pass the rule set before looking -- win the
+CV inside train *and* dev, without adding overrun risk:
+
+| | CV ax31 | CV axk1 | dev weighted | risk-adj | P(over) |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| gain on n-grams | +0.0508 | +0.2372 | 0.6721 | 0.6721 | 0/0/0% |
+| plus predicted P(4 generations) | **+0.0523** | **+0.2392** | 0.6734 | **0.6734** | 0/0/0% |
+
+The CV margin is small enough to be worth a second look, so it was paired over 3
+seeds x 4 folds: mean +0.0015 and +0.0016, improving in 10 and 11 of 12 folds,
+t = +3.44 and +2.52. Small, consistent and free -- one logistic predict, and the
+runtime is unchanged at 4.99 s for 2,640 episodes.
+
+## Per-tier safety quantiles buy nothing here
+
+The two furthest-along public forks both set the safety quantile per tier, one of
+them promoting an "EV-optimal premium q068". The tiers do have very different
+headroom -- fast runs at 1.11x of 1.25x, premium at 2.76x of 4.00x -- so it is a
+reasonable thing to try. Scored per tier, with the overrun probability attached:
+
+| tier | q_safe | score | spend/cap | P(over) | weight*score*(1-P) |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| fast | 0.80 | 0.6446 | 1.21/1.25 | 17.0% | 0.2140 |
+| fast | **0.90** | 0.6438 | 1.11/1.25 | 0.0% | **0.2575** |
+| balanced | 0.80 | 0.6830 | 1.80/2.00 | 4.5% | 0.1957 |
+| balanced | **0.90** | 0.6787 | 1.59/2.00 | 0.0% | **0.2036** |
+| premium | 0.80 | 0.7136 | 3.37/4.00 | 4.5% | 0.2045 |
+| premium | **0.90** | 0.7034 | 2.76/4.00 | 0.0% | **0.2110** |
+
+0.90 wins every tier independently, so the per-tier optimum is the uniform one and
+the total is unchanged at 0.6721. Pushing premium to 3.37x gains 0.003 of weighted
+score against a 4.5% chance of losing 0.21 -- the same trade, at every tier, in the
+same direction.

@@ -39,7 +39,7 @@ import sys
 from pathlib import Path
 
 import numpy as np
-from scipy.sparse import hstack
+from scipy.sparse import csr_matrix, hstack
 
 from router_features import episode_text, hand_features
 
@@ -77,9 +77,14 @@ def main() -> int:
     feats = np.c_[[hand_features(t) for t in texts],
                   np.log1p([len(t) for t in texts])]
 
+    # How many generations the episode is graded over is not given at run time,
+    # but it is recoverable from the prompt (dev AUC 0.9990) and it matters: light
+    # fails on 38.0% of 2-generation episodes and 18.3% of 4-generation ones.
+    Xg = hstack([X, csr_matrix(art["ng_clf"].predict_proba(X)[:, 1][:, None])]).tocsr()
+
     gain, cost = {}, {q_fill: {}, q_safe: {}}
     for m in upgrades:
-        gain[m] = art["gain"][m].predict(X)
+        gain[m] = art["gain"][m].predict(Xg)
         for q in (q_fill, q_safe):
             cost[q][m] = art["cost"][q][m].predict(feats).clip(1.0)
 
