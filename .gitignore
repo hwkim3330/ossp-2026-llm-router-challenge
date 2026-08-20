@@ -22,3 +22,7 @@ build/
 /data/cache/
 /data/materialized/
 dist/
+
+# local run logs, kept out of the submission commit
+/emu_timing.log
+/runtime_check_v*.log
