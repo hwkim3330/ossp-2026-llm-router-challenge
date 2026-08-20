@@ -369,3 +369,53 @@ Premium's unspent 1.24x is not an artifact of pricing the basket wrongly -- with
 per-purchase residual sd of 208,045 credits on `axk1-think` and a kurtosis near
 100, committing more of the budget genuinely cannot be done safely. The only way
 to spend it is a cost model with smaller residuals.
+
+## Where the cost residual actually is, and why a better point estimate hurts
+
+Cost is `in_rate*in_tokens + out_rate*out_tokens`, and the three parts are not
+equally hard. Input tokens correlate 0.9985 with character count and carry 2.8%
+of the cost-difference variance for `axk1-think`; `num_generations` is 2 or 4 and
+a logistic model on the prompt separates them at AUC 0.9990, but the two groups
+have such different internal spread that knowing which is which explains about 3%
+of the variance. The remaining 96% is output tokens -- how long the model thinks.
+
+Building the cost from those parts instead of regressing the composite improves
+the bulk substantially and the tail not at all:
+
+| cost model (out-of-fold on train) | residual sd | median abs error |
+| --- | ---: | ---: |
+| direct, hand features + length | 194,339 | 30,973 |
+| direct, plus prompt n-grams | 190,850 | 22,240 |
+| composed from log tokens per model | 191,773 | **20,315** |
+
+A 34% better median with an unchanged sd is what a kurtosis near 100 looks like.
+The prediction that follows is asymmetric and worth stating before the run: the
+greedy fills on the median, so score should rise, while the safety pass reads the
+spread, so the spend ceiling should not move.
+
+Half right. Score rose -- and the ceiling moved too:
+
+| cost model | dev weighted | risk-adj | fast | balanced | premium |
+| --- | ---: | ---: | --- | --- | --- |
+| hand features + length | 0.6721 | **0.6721** | 1.11, 0% | 1.59, 0% | 2.76, 0% |
+| plus the composed point estimate | 0.6756 | 0.6356 | 1.20, **12%** | 1.80, 4% | 3.07, 1% |
+
+The reason is measurable. Conditioning the quantile model on an accurate point
+estimate makes it narrow its intervals, and out of sample they are too narrow:
+
+| cost model | q90 coverage, ax31 | q90 coverage, axk1-think |
+| --- | ---: | ---: |
+| hand features + length | 0.868 | 0.868 |
+| plus the composed point estimate | 0.814 | **0.789** |
+
+A 0.9 quantile that covers 79% is not a 0.9 quantile, and the entire safety
+argument is that those quantiles are honest. This is the third time the same
+shape has appeared -- a text Ridge as an auxiliary feature, then embeddings, now a
+composed point estimate -- and each time the better predictor bought score with
+over-confident intervals and gave back more than it took.
+
+The generalisation worth keeping: with a heavy-tailed target and a few thousand
+rows, a quantile model conditioned on a strong point estimate reports the spread
+it can no longer see. Keeping the cost model deliberately weak is what makes its
+uncertainty trustworthy, and trustworthy uncertainty is what the budget rule
+actually consumes.
