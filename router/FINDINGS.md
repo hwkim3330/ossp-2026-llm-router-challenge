@@ -204,3 +204,37 @@ stopped at that same wall.
 Note on a number not to trust: fitting the artifact on train+dev and scoring it on
 dev gives 0.7422. That is training on the evaluation set and is reported here only
 so it is not mistaken for progress.
+
+## The 90 s limit: what the local check can and cannot tell us
+
+`tools/check_runtime.py` fails all three tiers here, each killed at the 90 s
+wall (95.004 s including the SIGTERM grace). That number is not evidence about
+the official run, and the tool says so itself: it warns when the Docker server
+is not the official `linux/arm64` machine.
+
+Measured on 2,640 episodes:
+
+| environment | wall |
+| --- | ---: |
+| native x86-64, 2 cores | **13.3 s** |
+| QEMU-emulated arm64, same box | > 11 min (killed) |
+
+So emulation costs a factor of roughly 50 on this workload, which is what
+scalar Python plus regex-heavy vectorisation does under TCG. The official
+evaluation runs native arm64 on Apple Silicon, where the honest expectation is
+tens of seconds, not minutes -- but that is an expectation, not a measurement,
+and nothing available here can turn it into one.
+
+Where the time goes, natively:
+
+| stage | wall | share |
+| --- | ---: | ---: |
+| TF-IDF transform (word + char_wb) | 9.6 s | 72% |
+| unpickle the 9.3 MB artifact | 1.8 s | 14% |
+| hand features | 1.8 s | 13% |
+| all nine model predictions | 0.1 s | 1% |
+
+The models are free; the vectoriser is the whole cost. If the native arm64 time
+ever needs to come down, capping the text length fed to the char analyser is the
+one lever worth pulling, and it changes predictions, so it has to be re-scored
+on dev rather than assumed harmless.
