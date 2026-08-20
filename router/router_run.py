@@ -13,10 +13,15 @@ every model is fitted beforehand and loaded from the baked artifact.
 The budget is the whole problem. A tier over its cap scores zero, and the bill is
 computed from the chosen model's actual tokens, which are unknown here. So cost is
 predicted at two quantiles: purchases are filled greedily on the 0.5 quantile by
-predicted gain per predicted credit, then the basket is re-priced at the 0.95
+predicted gain per predicted credit, then the basket is re-priced at the 0.90
 quantile and the weakest purchases dropped until even that pessimistic bill fits,
 with 3% of the cap held back as slack. Tuning a margin for score instead scored
 below routing everything to light -- see FINDINGS.md.
+
+The cost models deliberately do not read the prompt n-grams, only hand features
+and length. Letting a text model feed them scored the same on dev and made the
+spend ratio swing enough to forfeit the balanced tier in 17% of bootstrap
+resamples; length alone forfeited none.
 
 The baseline bill is itself unknown at runtime: the cap is a multiple of what
 routing everything to ax31-light would cost, and light's token usage is not given
@@ -62,14 +67,19 @@ def main() -> int:
     n = len(ids)
     print(f"{n} episodes, tier {args.tier}", file=sys.stderr, flush=True)
 
-    X = hstack([art["tfidf_word"].transform(texts), art["tfidf_char"].transform(texts)]).tocsr()
-    H = np.array([hand_features(t) for t in texts])
+    # Gain reads the first `gain_cap` characters; cost reads no n-grams at all.
+    # That split is why this fits the time budget -- the median episode is 237
+    # characters and the longest is 71,094, and vectorising that tail was 72% of
+    # the runtime.
+    capped = [t[: art["gain_cap"]] for t in texts]
+    X = hstack([art["tfidf_word"].transform(capped),
+                art["tfidf_char"].transform(capped)]).tocsr()
+    feats = np.c_[[hand_features(t) for t in texts],
+                  np.log1p([len(t) for t in texts])]
 
     gain, cost = {}, {q_fill: {}, q_safe: {}}
     for m in upgrades:
         gain[m] = art["gain"][m].predict(X)
-        aux = art["cost"]["base"][m].predict(X)
-        feats = np.c_[H, aux]
         for q in (q_fill, q_safe):
             cost[q][m] = art["cost"][q][m].predict(feats).clip(1.0)
 
@@ -78,8 +88,7 @@ def main() -> int:
     # estimating it inflates the cap and risks an overrun, which forfeits the tier,
     # while under-estimating only leaves some score on the table.
     q_light = art["q_light"]
-    aux_light = art["light_cost"]["base"].predict(X)
-    light_bill = float(art["light_cost"][q_light].predict(np.c_[H, aux_light]).clip(1.0).sum())
+    light_bill = float(art["light_cost"][q_light].predict(feats).clip(1.0).sum())
     print(f"estimated light bill {light_bill:,.0f} credits "
           f"({light_bill / n:,.0f}/episode, q={q_light})", file=sys.stderr, flush=True)
     cap = float(policy["tiers"][args.tier]["budget_multiplier"]) * light_bill

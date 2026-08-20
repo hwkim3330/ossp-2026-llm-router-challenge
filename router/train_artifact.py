@@ -29,7 +29,13 @@ from scipy.sparse import hstack
 
 from router_features import episode_text, hand_features
 
-Q_FILL, Q_SAFE = 0.5, 0.95
+Q_FILL, Q_SAFE = 0.5, 0.90
+
+# The gain models see only the first GAIN_CAP characters. The median episode is
+# 237 characters but the top 9% hold 90% of all characters, so the n-gram work is
+# almost entirely a tail problem; capping it cost nothing measurable (dev 0.6755
+# against 0.6748 uncapped) and removed most of the runtime.
+GAIN_CAP = 500
 
 
 def load(challenge_root: Path, split: str, policy: dict):
@@ -76,21 +82,24 @@ def main() -> int:
     tw = TfidfVectorizer(sublinear_tf=True, ngram_range=(1, 2), min_df=2,
                          max_features=30000, strip_accents="unicode")
     tc = TfidfVectorizer(analyzer="char_wb", ngram_range=(3, 5), min_df=3, max_features=40000)
-    X = hstack([tw.fit_transform(texts), tc.fit_transform(texts)]).tocsr()
-    H = np.array([hand_features(t) for t in texts])
+    capped = [t[:GAIN_CAP] for t in texts]
+    X = hstack([tw.fit_transform(capped), tc.fit_transform(capped)]).tocsr()
+    # Cost features are hand features plus log length, on the FULL text, and no
+    # n-grams. Letting a text model feed the cost quantiles made the spend ratio
+    # swing: over 200 bootstrap resamples of dev the balanced ratio had sd 0.208
+    # against a 0.17 margin, i.e. a 17% chance of forfeiting the tier. Length
+    # alone gives sd 0.106 and no overrun in any resample, at the same score.
+    F = np.c_[[hand_features(t) for t in texts], np.log1p([len(t) for t in texts])]
 
     gain, cost_models = {}, {q: {} for q in (Q_FILL, Q_SAFE)}
     for m in upgrades:
         y = np.array([r["score"][m] - r["score"][light] for r in rows])
         gain[m] = Ridge(alpha=1.0).fit(X, y)
         yc = np.clip([r["cost"][m] - r["cost"][light] for r in rows], 1.0, None)
-        base = Ridge(alpha=1.0).fit(X, np.log1p(yc))
-        aux = base.predict(X)
         for q in (Q_FILL, Q_SAFE):
             cost_models[q][m] = HistGradientBoostingRegressor(
                 loss="quantile", quantile=q, max_iter=250, learning_rate=0.06,
-                max_depth=6, random_state=0).fit(np.c_[H, aux], yc)
-        cost_models.setdefault("base", {})[m] = base
+                max_depth=6, random_state=0).fit(F, yc)
         print(f"  {m}: gain + cost models fitted")
 
     # The cap is a multiple of the all-light bill, and the container is never told
@@ -99,12 +108,11 @@ def main() -> int:
     # only costs some score. So light's own cost is fitted at a LOW quantile and the
     # asymmetry is resolved in the safe direction.
     y_light = np.array([r["cost"][light] for r in rows])
-    base_light = Ridge(alpha=1.0).fit(X, np.log1p(y_light))
-    light_models = {"base": base_light}
+    light_models = {}
     for q in (0.25, 0.5, 0.75):
         light_models[q] = HistGradientBoostingRegressor(
             loss="quantile", quantile=q, max_iter=250, learning_rate=0.06,
-            max_depth=6, random_state=0).fit(np.c_[H, base_light.predict(X)], y_light)
+            max_depth=6, random_state=0).fit(F, y_light)
     print(f"  {light}: cost model fitted (mean {y_light.mean():.0f} credits/episode)")
 
     args.out.parent.mkdir(parents=True, exist_ok=True)
@@ -112,7 +120,8 @@ def main() -> int:
         pickle.dump({"tfidf_word": tw, "tfidf_char": tc, "gain": gain,
                      "cost": cost_models, "light": light, "upgrades": upgrades,
                      "light_cost": light_models, "q_light": 0.75,
-                     "policy": policy, "q_fill": Q_FILL, "q_safe": Q_SAFE}, fh,
+                     "policy": policy, "q_fill": Q_FILL, "q_safe": Q_SAFE,
+                     "gain_cap": GAIN_CAP}, fh,
                     protocol=4)
     print(f"wrote {args.out} ({args.out.stat().st_size / 2**20:.1f} MiB)")
     return 0

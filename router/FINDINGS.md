@@ -238,3 +238,55 @@ The models are free; the vectoriser is the whole cost. If the native arm64 time
 ever needs to come down, capping the text length fed to the char analyser is the
 one lever worth pulling, and it changes predictions, so it has to be re-scored
 on dev rather than assumed harmless.
+
+## The shipped router had a 17% chance of forfeiting the balanced tier
+
+Every configuration above was judged by its dev score and by whether each tier
+landed under its cap. That is the wrong question. Dev is one sample of 880
+episodes and the graded split is another, so what matters is not "did balanced
+pass here" but "how far does the spend ratio move between samples of this size".
+
+Measured, over 200 bootstrap resamples of dev, routing each resample on its own
+(the ratio is a global knapsack outcome, not an average of per-episode values):
+
+| design | balanced spend | bootstrap sd | P(over 2.0x) |
+| --- | ---: | ---: | ---: |
+| cost model reads the full-text n-grams (shipped) | 1.83x | 0.208 | **17.0%** |
+| cost model reads hand features and log length | 1.59x | 0.106 | **0.0%** |
+
+The margin was 0.17 against a standard deviation of 0.21. Balanced passing on
+dev at 1.83x was luck, and the tier carries weight 0.3, so the honest expected
+score of the shipped router is not its dev 0.6710:
+
+| config | dev weighted | risk-adjusted |
+| --- | ---: | ---: |
+| full-text cost, q_safe 0.95 (shipped) | 0.6710 | 0.6362 |
+| length-only cost, q_safe 0.90 | 0.6721 | **0.6721** |
+| length-only cost, q_safe 0.80 | 0.6768 | 0.6141 |
+
+The last row is the same trap a third time: the highest dev score of the three
+carries a 17% chance of losing *fast*, which has weight 0.4.
+
+Why the text hurt the cost path. Cost is close to a function of length, and the
+n-grams add variance rather than signal to it -- and the greedy fill then
+concentrates on whatever looks cheap in this particular sample. Removing them
+costs nothing measurable on score and cuts the sampling spread in half.
+
+## The same change fixed the runtime
+
+Cost no longer needs the prompt, and the gain models turned out not to need all
+of it: capping their input at 500 characters scored 0.6755 against 0.6748
+uncapped. The tail was the whole expense -- median episode 237 characters,
+longest 71,094, top 9% holding 90% of all characters.
+
+On 2,640 episodes, native x86-64, 2 cores:
+
+| | before | after |
+| --- | ---: | ---: |
+| total | 13.3 s | **4.97 s** |
+| TF-IDF transform | 9.6 s | 0.7 s |
+| peak RSS | | 263 MB of 2 GiB |
+
+Two risks, one change. Nothing here was selected for score: the quantile sweep
+is reported so the shape is visible, and the design was chosen on whether its
+margin exceeded the measured sampling spread.
