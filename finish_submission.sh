@@ -63,13 +63,14 @@ SNAP_SHA="$(git rev-parse HEAD)"
 SNAPSHOT="https://github.com/hwkim3330/ossp-2026-llm-router-challenge/tree/$SNAP_SHA"
 echo "== 프로젝트 등록 URL: $SNAPSHOT"
 
-echo "== filling the report placeholders"
-python3 - "$SNAPSHOT" "$YOUTUBE_URL" <<'PY'
+echo "== rebuilding the report from the template, then filling the URLs"
+python3 "$HOME/ossp-report/fill_report.py"
+python3 - "$SNAPSHOT" "$YOUTUBE_URL" "$CODE_SHA" <<'PY'
 import sys
 from pathlib import Path
 from docx import Document
 
-snapshot, video = sys.argv[1], sys.argv[2]
+snapshot, video, code_sha = sys.argv[1], sys.argv[2], sys.argv[3]
 path = Path.home() / "Documents/2026 오픈소스 개발자대회 결과보고서_168(메타몽).docx"
 doc = Document(str(path))
 hits = 0
@@ -79,11 +80,12 @@ for table in doc.tables:
             for para in cell.paragraphs:
                 for run in para.runs:
                     for token, value in (("{{SNAPSHOT_URL}}", snapshot),
-                                         ("{{YOUTUBE_URL}}", video)):
+                                         ("{{YOUTUBE_URL}}", video),
+                                         ("{{CODE_SHA}}", code_sha)):
                         if token in run.text:
                             run.text = run.text.replace(token, value)
                             hits += 1
-assert hits >= 2, f"placeholders not found (replaced {hits})"
+assert hits >= 3, f"placeholders not found (replaced {hits})"
 doc.save(str(path))
 print("filled", hits, "placeholders")
 PY
