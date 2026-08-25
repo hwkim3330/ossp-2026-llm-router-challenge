@@ -64,8 +64,8 @@ PYTHONPATH=src python3 tools/check_runtime.py --image ossp-router:local \
 * **공개 업스트림** — 없음. 기반 모델 없이 이 저장소의 공개 Train+Dev
   2,640 문항으로 처음부터 적합했습니다.
 * **고정 리비전과 SHA-256** —
-  `020355b9d10a4e19603c6e2cd075ae8e834360119d150fa11c76fb3f0ccf34bf`
-  (9,326,812 바이트).
+  `c9fa33cd5d05cea7f4b77d5e577ab8ae28819fb8e3de4f466e241f0c5fdac681`
+  (8,771,602 바이트), 커밋 `fc843a2` 에서 재적합한 판입니다.
 * **라이선스** — Apache-2.0. 학습에 쓴 자료의 출처와 고지는 저장소의
   [`THIRD_PARTY_NOTICES.md`](../THIRD_PARTY_NOTICES.md) 와
   [`DATA_LICENSES.md`](../DATA_LICENSES.md) 를 따릅니다.
